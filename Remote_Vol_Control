@@ -1,0 +1,62 @@
+#include <IRremote.hpp>
+#include <BleKeyboard.h>
+
+#define IR_PIN 4
+
+BleKeyboard bleKeyboard("ESP32 Volume Remote", "Elegoo", 100);
+
+unsigned long lastPress = 0;
+const unsigned long debounceMs = 200;
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+
+  IrReceiver.begin(IR_PIN, DISABLE_LED_FEEDBACK);
+  bleKeyboard.begin();
+
+  Serial.println("IR + BLE volume remote ready");
+}
+
+void loop() {
+  if (IrReceiver.decode()) {
+
+    uint32_t code = IrReceiver.decodedIRData.decodedRawData;
+    IrReceiver.resume();
+
+    if (code == 0x0) return;
+    if (!bleKeyboard.isConnected()) return;
+    if (millis() - lastPress < debounceMs) return;
+
+    lastPress = millis();
+
+    switch (code) {
+
+      // VOLUME UP
+      case 0xF50AFF00:   // +
+      case 0xEF10FF00:   // 1
+        bleKeyboard.write(KEY_MEDIA_VOLUME_UP);
+        Serial.println("VOL +");
+        break;
+
+      // VOLUME DOWN
+      case 0xF609FF00:   // -
+      case 0xEE11FF00:   // 2
+        bleKeyboard.write(KEY_MEDIA_VOLUME_DOWN);
+        Serial.println("VOL -");
+        break;
+
+      // MUTE
+      case 0xFD02FF00:
+        bleKeyboard.write(KEY_MEDIA_MUTE);
+        Serial.println("MUTE");
+        break;
+
+      // PLAY / PAUSE
+      case 0xFB04FF00:
+        bleKeyboard.write(KEY_MEDIA_PLAY_PAUSE);
+        Serial.println("PLAY / PAUSE");
+        break;
+    }
+  }
+}
